@@ -1,0 +1,1301 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d12">
+  <title>StockScope — See Your Money Differently</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg: #090d12;
+      --panel: #10161e;
+      --border: #26313d;
+      --muted: #8d9aaa;
+      --green: #a3ffcb;
+      --text: #f1f5f9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(ellipse at 70% -10%, #18362b 0, transparent 35%),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+
+    button { cursor: pointer; }
+
+    .panel {
+      background: rgba(16, 22, 30, .94);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+
+    .muted { color: var(--muted); }
+
+    .field {
+      width: 100%;
+      padding: 12px 14px;
+      color: var(--text);
+      background: #0a1017;
+      border: 1px solid #2a3543;
+      border-radius: 12px;
+      outline: none;
+      transition: border .2s, box-shadow .2s;
+    }
+
+    .field:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px #a3ffcb14;
+    }
+
+    .label {
+      display: block;
+      font-size: 12px;
+      color: #b3bfcc;
+      margin-bottom: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px;
+      border: 1px solid #2a3941;
+      border-radius: 99px;
+      background: #111b20;
+      color: #c1d4cb;
+      font-size: 11px;
+    }
+
+    .green { color: var(--green); }
+
+    .primary {
+      background: var(--green);
+      color: #082015;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 750;
+      transition: transform .2s, background .2s;
+    }
+
+    .primary:hover {
+      background: #c2ffdb;
+      transform: translateY(-1px);
+    }
+
+    .secondary {
+      background: #141c26;
+      color: #e4eaf1;
+      border: 1px solid #303c4b;
+      border-radius: 12px;
+      padding: 11px 14px;
+    }
+
+    .secondary:hover { background: #202a36; }
+
+    .metric {
+      padding: 18px;
+      border: 1px solid #26313e;
+      border-radius: 16px;
+      background: linear-gradient(145deg, #131c26, #10151d);
+      min-width: 0;
+    }
+
+    .metric-value {
+      overflow-wrap: anywhere;
+      letter-spacing: -0.045em;
+      font-weight: 750;
+    }
+
+    .tab {
+      border-radius: 9px;
+      padding: 9px 12px;
+      font-size: 12px;
+      color: #9aa9ba;
+    }
+
+    .tab.active {
+      color: var(--green);
+      background: #1c3028;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--green);
+      cursor: pointer;
+    }
+
+    .chart-area {
+      height: 280px;
+      position: relative;
+    }
+
+    .mini-bar {
+      height: 5px;
+      background: #293441;
+      border-radius: 9px;
+      overflow: hidden;
+    }
+
+    .mini-bar > div {
+      height: 100%;
+      background: var(--green);
+      border-radius: 9px;
+      transition: width .3s;
+    }
+
+    .table-scroll { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      min-width: 560px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 13px 16px;
+      text-align: right;
+      border-bottom: 1px solid #26313d;
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+
+    th {
+      color: #98a7b8;
+      font-weight: 500;
+      background: #131a23;
+    }
+
+    .positive { color: #a3ffcb; }
+    .negative { color: #ff9eae; }
+
+    .section-kicker {
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .18em;
+      color: #91a49a;
+    }
+
+    .number-control {
+      display: flex;
+      align-items: center;
+      border: 1px solid #2a3543;
+      border-radius: 12px;
+      background: #0a1017;
+      overflow: hidden;
+    }
+
+    .number-control .prefix {
+      padding-left: 13px;
+      color: #819184;
+    }
+
+    .number-control input {
+      min-width: 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .number-control input:focus {
+      box-shadow: none;
+      border: 0;
+    }
+
+    .hidden-panel { display: none; }
+
+    @media (max-width: 640px) {
+      .chart-area { height: 245px; }
+      .metric { padding: 14px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
+
+    <!-- NAVIGATION -->
+    <header class="flex items-center justify-between gap-4 mb-10">
+      <a href="#" class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+          style="background:var(--green);color:#092016">
+          <svg width="24" height="24" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 17l6-6 4 3 8-9"/>
+            <path d="M15 5h6v6"/>
+          </svg>
+        </div>
+        <div>
+          <div class="font-bold tracking-tight text-lg">stockscope<span class="green">.</span></div>
+          <div class="muted text-xs">A clearer view of your future</div>
+        </div>
+      </a>
+
+      <div class="hidden sm:flex items-center gap-2">
+        <span class="pill">
+          <span class="w-2 h-2 rounded-full" style="background:var(--green)"></span>
+          Projection mode
+        </span>
+      </div>
+    </header>
+
+    <!-- INTRO -->
+    <section class="mb-8">
+      <div class="section-kicker mb-3">YOUR MONEY. YOUR NEXT MOVE.</div>
+      <div class="grid lg:grid-cols-2 gap-6 items-end">
+        <div>
+          <h1 class="text-4xl sm:text-6xl font-bold tracking-tight leading-[1.06]">
+            Make your future<br>
+            <span class="green">less of a guess.</span>
+          </h1>
+        </div>
+        <div class="lg:pl-12">
+          <p class="muted text-sm leading-7 max-w-xl">
+            Explore how a one-time investment and monthly contributions
+            could grow over time. Adjust the assumptions and understand
+            the numbers before making a decision.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <span class="pill">01 / Plan</span>
+            <span class="pill">02 / Project</span>
+            <span class="pill">03 / Compare</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="grid lg:grid-cols-[350px_minmax(0,1fr)] gap-5 items-start">
+
+      <!-- LEFT: INPUTS -->
+      <aside class="panel p-5 sm:p-6">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <div class="section-kicker mb-2">01 — YOUR PLAN</div>
+            <h2 class="text-xl font-bold">Build a scenario</h2>
+          </div>
+          <button id="resetButton" class="muted text-xs hover:text-white">
+            Reset ↺
+          </button>
+        </div>
+
+        <form id="planForm" class="space-y-5">
+
+          <div>
+            <label class="label" for="investmentName">What are you planning for?</label>
+            <input id="investmentName" class="field"
+              maxlength="70" value="My investment"
+              placeholder="e.g. Long-term portfolio">
+            <p class="muted text-xs mt-2">
+              Give your plan a name to keep the results clear.
+            </p>
+          </div>
+
+          <div>
+            <label class="label" for="currency">Currency</label>
+            <select id="currency" class="field">
+              <option value="INR">₹ INR — Indian Rupee</option>
+              <option value="USD">$ USD — US Dollar</option>
+              <option value="EUR">€ EUR — Euro</option>
+              <option value="GBP">£ GBP — British Pound</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="label" for="initial">Money invested today</label>
+            <div class="number-control">
+              <span id="initialSymbol" class="prefix">₹</span>
+              <input id="initial" class="field" type="number"
+                min="0" max="1000000000000" step="any"
+                value="50000" required>
+            </div>
+            <p class="muted text-xs mt-2">
+              A one-time amount you start with.
+            </p>
+          </div>
+
+          <div>
+            <label class="label" for="monthly">Monthly contribution</label>
+            <div class="number-control">
+              <span id="monthlySymbol" class="prefix">₹</span>
+              <input id="monthly" class="field" type="number"
+                min="0" max="1000000000000" step="any"
+                value="5000" required>
+            </div>
+            <p class="muted text-xs mt-2">
+              How much you plan to add each month.
+            </p>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-3">
+              <label class="label mb-0" for="years">Time horizon</label>
+              <span id="yearsValue" class="green text-sm font-bold">10 years</span>
+            </div>
+            <input id="years" type="range" min="1" max="40"
+              step="1" value="10">
+            <div class="flex justify-between muted text-xs mt-2">
+              <span>1 year</span><span>20 years</span><span>40 years</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-3">
+              <label class="label mb-0" for="rate">Expected annual return</label>
+              <span id="rateValue" class="green text-sm font-bold">12%</span>
+            </div>
+            <input id="rate" type="range" min="-30" max="30"
+              step="0.5" value="12">
+            <div class="flex justify-between muted text-xs mt-2">
+              <span>-30%</span><span>0%</span><span>30%</span>
+            </div>
+            <p class="muted text-xs mt-3 leading-5">
+              An assumed annual rate, not a forecast. Actual stock
+              returns change over time and may be negative.
+            </p>
+          </div>
+
+          <button type="submit" class="primary w-full">
+            Update my projection ↗
+          </button>
+        </form>
+
+        <div class="mt-5 pt-5 border-t border-slate-800">
+          <button id="advancedToggle"
+            class="w-full flex justify-between items-center text-sm">
+            <span class="font-semibold">Advanced assumptions</span>
+            <span id="advancedArrow" class="green">＋</span>
+          </button>
+
+          <div id="advancedPanel" class="hidden-panel mt-5 space-y-5">
+            <div>
+              <label class="label" for="inflation">
+                Assumed annual inflation (%)
+              </label>
+              <input id="inflation" class="field" type="number"
+                min="0" max="100" step="0.1" value="5">
+              <p class="muted text-xs mt-2">
+                Used to estimate what your future money may buy in today's terms.
+              </p>
+            </div>
+
+            <div>
+              <label class="label" for="fees">
+                Annual fee assumption (%)
+              </label>
+              <input id="fees" class="field" type="number"
+                min="0" max="20" step="0.1" value="0.5">
+              <p class="muted text-xs mt-2">
+                An illustrative annual cost deducted from the assumed growth rate.
+              </p>
+            </div>
+
+            <div>
+              <label class="label" for="scenarioRange">
+                Scenario difference (percentage points)
+              </label>
+              <input id="scenarioRange" class="field" type="number"
+                min="0" max="60" step="0.5" value="4">
+            </div>
+          </div>
+        </div>
+
+        <p id="error" role="alert"
+          class="hidden text-rose-400 text-xs mt-4 leading-5"></p>
+      </aside>
+
+      <!-- RIGHT: RESULTS -->
+      <div class="space-y-5 min-w-0">
+
+        <!-- RESULT HERO -->
+        <section class="panel p-5 sm:p-7 relative overflow-hidden">
+          <div class="absolute -right-12 -top-16 w-56 h-56 rounded-full pointer-events-none"
+            style="background:#a3ffcb0a;filter:blur(25px)"></div>
+
+          <div class="relative">
+            <div class="flex flex-wrap justify-between items-start gap-3">
+              <div>
+                <div class="section-kicker mb-2">02 — YOUR POSSIBLE FUTURE</div>
+                <p class="muted text-sm">Estimated portfolio value</p>
+              </div>
+              <span id="resultBadge" class="pill">10-year scenario</span>
+            </div>
+
+            <h2 id="finalValue"
+              class="metric-value text-4xl sm:text-6xl mt-5 green">
+              ₹0
+            </h2>
+
+            <p class="muted text-sm mt-3 leading-6">
+              If your assumptions held true for the entire period.
+              Real outcomes can be higher or lower.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-7">
+              <div class="metric">
+                <p class="muted text-xs">Your contributions</p>
+                <p id="investedValue" class="metric-value text-xl mt-3">₹0</p>
+                <p class="muted text-xs mt-2">Money you put in</p>
+              </div>
+              <div class="metric">
+                <p class="muted text-xs">Estimated profit / loss</p>
+                <p id="profitValue" class="metric-value text-xl mt-3">₹0</p>
+                <p class="muted text-xs mt-2">Value minus contributions</p>
+              </div>
+              <div class="metric">
+                <p class="muted text-xs">Return on contributions</p>
+                <p id="roiValue" class="metric-value text-xl mt-3">0%</p>
+                <p class="muted text-xs mt-2">Profit ÷ contributions</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CHART -->
+        <section class="panel p-5 sm:p-6">
+          <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
+            <div>
+              <div class="section-kicker mb-2">03 — THE JOURNEY</div>
+              <h3 class="text-lg font-bold">Watch your money grow</h3>
+              <p class="muted text-sm mt-1">
+                Compare your contributions with the projected value.
+              </p>
+            </div>
+
+            <div class="flex gap-1 rounded-xl p-1"
+              style="background:#090e14">
+              <button class="tab active" data-view="all">Overview</button>
+              <button class="tab" data-view="profit">Profit only</button>
+            </div>
+          </div>
+
+          <div class="chart-area">
+            <canvas id="growthChart"
+              aria-label="Investment projection chart"></canvas>
+          </div>
+
+          <div class="flex flex-wrap gap-x-5 gap-y-2 mt-5 text-xs muted">
+            <span class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-sm"
+                style="background:#a3ffcb"></span>
+              Portfolio value
+            </span>
+            <span class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-sm"
+                style="background:#6da9ff"></span>
+              Contributions
+            </span>
+          </div>
+        </section>
+
+        <!-- UNDERSTAND YOUR MONEY -->
+        <section class="panel p-5 sm:p-6">
+          <div class="section-kicker mb-2">04 — MAKE SENSE OF IT</div>
+          <h3 class="text-lg font-bold">Where could your money come from?</h3>
+          <p class="muted text-sm mt-2">
+            Separate what you contribute from the growth your
+            assumptions produce.
+          </p>
+
+          <div class="mt-6 space-y-5">
+            <div>
+              <div class="flex justify-between gap-3 text-sm mb-2">
+                <span>Money you contributed</span>
+                <strong id="breakdownInvested">₹0</strong>
+              </div>
+              <div class="mini-bar"><div id="investedBar" style="width:50%"></div></div>
+            </div>
+
+            <div>
+              <div class="flex justify-between gap-3 text-sm mb-2">
+                <span>Estimated profit / loss</span>
+                <strong id="breakdownProfit">₹0</strong>
+              </div>
+              <div class="mini-bar"><div id="profitBar" style="width:50%"></div></div>
+            </div>
+          </div>
+
+          <div class="mt-6 p-4 rounded-xl"
+            style="background:#0a1017;border:1px solid #25313d">
+            <p class="green text-sm font-semibold mb-2">In plain English</p>
+            <p id="explanation" class="muted text-sm leading-6">
+              Your projection explanation will appear here.
+            </p>
+          </div>
+        </section>
+
+        <!-- PURCHASING POWER -->
+        <section class="grid sm:grid-cols-2 gap-4">
+          <div class="panel p-5">
+            <div class="section-kicker mb-2">TODAY'S PURCHASING POWER</div>
+            <p class="muted text-sm">Inflation-adjusted estimate</p>
+            <p id="realValue" class="metric-value text-2xl mt-4">₹0</p>
+            <p class="muted text-xs mt-3 leading-5">
+              What the projected future amount is equivalent to in
+              today's money, using your inflation assumption.
+            </p>
+          </div>
+
+          <div class="panel p-5">
+            <div class="section-kicker mb-2">THE COST OF WAITING</div>
+            <p class="muted text-sm">Starting one year later</p>
+            <p id="delayValue" class="metric-value text-2xl mt-4">₹0</p>
+            <p id="delayExplanation" class="muted text-xs mt-3 leading-5">
+              A comparison with the same plan started one year later.
+            </p>
+          </div>
+        </section>
+
+        <!-- SCENARIO COMPARISON -->
+        <section class="panel p-5 sm:p-6">
+          <div class="section-kicker mb-2">05 — WHAT IF?</div>
+          <h3 class="text-lg font-bold">Three possible outcomes</h3>
+          <p class="muted text-sm mt-2 leading-6">
+            Compare different constant-return assumptions. These are
+            illustrations, not predictions or probability ranges.
+          </p>
+
+          <div class="grid sm:grid-cols-3 gap-3 mt-5">
+            <div class="rounded-xl p-4"
+              style="background:#1a1319;border:1px solid #3a2730">
+              <p class="text-xs" style="color:#ff9eae">Lower scenario</p>
+              <p id="lowRate" class="muted text-xs mt-2">8%</p>
+              <p id="lowValue" class="font-bold text-xl mt-4">₹0</p>
+              <p id="lowProfit" class="muted text-xs mt-2">Profit / loss: ₹0</p>
+            </div>
+
+            <div class="rounded-xl p-4"
+              style="background:#132019;border:1px solid #2a4938">
+              <p class="text-xs green">Base scenario</p>
+              <p id="baseRate" class="muted text-xs mt-2">12%</p>
+              <p id="baseValue" class="font-bold text-xl mt-4">₹0</p>
+              <p id="baseProfit" class="muted text-xs mt-2">Profit / loss: ₹0</p>
+            </div>
+
+            <div class="rounded-xl p-4"
+              style="background:#121a27;border:1px solid #27384f">
+              <p class="text-xs" style="color:#8dbdff">Higher scenario</p>
+              <p id="highRate" class="muted text-xs mt-2">16%</p>
+              <p id="highValue" class="font-bold text-xl mt-4">₹0</p>
+              <p id="highProfit" class="muted text-xs mt-2">Profit / loss: ₹0</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- YEARLY TABLE -->
+        <section class="panel overflow-hidden">
+          <div class="p-5 sm:p-6 flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <div class="section-kicker mb-2">06 — THE NUMBERS</div>
+              <h3 class="text-lg font-bold">Year-by-year breakdown</h3>
+              <p class="muted text-sm mt-1">
+                See how contributions and projected value change.
+              </p>
+            </div>
+            <button id="exportButton" class="secondary text-xs">
+              Export CSV ↓
+            </button>
+          </div>
+
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th>Contributions</th>
+                  <th>Portfolio value</th>
+                  <th>Profit / loss</th>
+                  <th>Return</th>
+                </tr>
+              </thead>
+              <tbody id="yearlyRows"></tbody>
+            </table>
+          </div>
+          <p class="muted text-xs p-5">
+            All figures are projections and are rounded for display.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+   
+<footer class="mt-12 pt-8 pb-5 border-t border-slate-800">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+
+    <!-- BRAND -->
+    <div>
+      <a href="#" class="inline-flex items-center gap-2">
+        <span class="font-bold text-xl tracking-tight">
+          stockscope<span class="green">.</span>
+        </span>
+      </a>
+
+      <p class="muted text-sm mt-3 leading-6">
+        Understand the numbers.<br>
+        Make informed decisions.
+      </p>
+    </div>
+
+    <!-- DISCLAIMER -->
+    <div>
+      <p class="text-sm font-semibold mb-3">Important disclaimer</p>
+
+      <p class="muted text-xs leading-6">
+        Educational projection only, not investment advice. This model
+        assumes a constant effective annual return converted to a monthly
+        rate, with contributions at month-end. It does not use live market
+        prices or simulate actual price volatility. Fees are simplified,
+        and taxes, dividends, stock splits and other costs are excluded.
+        Actual results may differ substantially, including losses.
+      </p>
+    </div>
+
+    <!-- CREATOR -->
+    <div class="md:text-right">
+      <p class="muted text-xs uppercase tracking-widest mb-3">
+        Crafted with purpose
+      </p>
+
+      <p class="text-sm font-semibold">
+        Made by <span class="green">Jasmeet Pardhan</span>
+      </p>
+
+      <a
+        href="https://github.com/shivarawart/StockScope.git"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Visit Jasmeet Pardhan on GitHub"
+        class="inline-flex items-center gap-2 mt-4 px-4 py-2.5
+               rounded-xl border border-slate-700 bg-slate-900
+               hover:border-emerald-300 hover:text-emerald-300
+               transition-colors text-sm"
+      >
+        <!-- GitHub icon -->
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.55.1.76-.24.76-.54v-2.1c-3.1.67-3.76-1.32-3.76-1.32-.5-1.29-1.24-1.63-1.24-1.63-1.01-.69.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15.99 1.7 2.59 1.21 3.22.93.1-.72.39-1.21.7-1.49-2.47-.28-5.07-1.24-5.07-5.49 0-1.21.43-2.2 1.15-2.97-.12-.28-.5-1.41.11-2.94 0 0 .94-.3 3.05 1.14a10.6 10.6 0 0 1 5.55 0c2.11-1.44 3.05-1.14 3.05-1.14.61 1.53.23 2.66.11 2.94.72.77 1.15 1.76 1.15 2.97 0 4.26-2.6 5.21-5.08 5.49.4.35.75 1.02.75 2.06v3.08c0 .3.2.65.76.54A11.1 11.1 0 0 0 12 .9Z"/>
+        </svg>
+
+        <span>View GitHub</span>
+
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M7 17 17 7"/>
+          <path d="M7 7h10v10"/>
+        </svg>
+      </a>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="mt-8 pt-5 border-t border-slate-800
+              flex flex-col sm:flex-row justify-between gap-3">
+    <p class="muted text-xs">
+      © 2026 StockScope. Built for learning and analysis.
+    </p>
+
+    <p class="muted text-xs">
+      Designed & developed by Jasmeet Pardhan.
+    </p>
+  </div>
+</footer>
+
+  </div>
+
+  <script>
+    // =========================================
+    // 1. HELPERS AND DEFAULT SETTINGS
+    // =========================================
+
+    const $ = (id) => document.getElementById(id);
+
+    const defaults = {
+      investmentName: "My investment",
+      currency: "INR",
+      initial: "50000",
+      monthly: "5000",
+      years: "10",
+      rate: "12",
+      inflation: "5",
+      fees: "0.5",
+      scenarioRange: "4"
+    };
+
+    const currencySymbols = {
+      INR: "₹",
+      USD: "$",
+      EUR: "€",
+      GBP: "£"
+    };
+
+    let chart = null;
+    let latest = null;
+    let chartView = "all";
+
+    function formatMoney(value, currency) {
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0
+      }).format(value);
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat("en-IN", {
+        maximumFractionDigits: 2
+      }).format(value);
+    }
+
+    function formatPercent(value) {
+      return formatNumber(value) + "%";
+    }
+
+    function setValue(id, value) {
+      $(id).textContent = value;
+    }
+
+    function setSignedStyle(element, value) {
+      element.classList.toggle("positive", value >= 0);
+      element.classList.toggle("negative", value < 0);
+    }
+
+    // =========================================
+    // 2. INPUTS AND VALIDATION
+    // =========================================
+
+    function readInputs() {
+      return {
+        name: $("investmentName").value.trim() || "My investment",
+        currency: $("currency").value,
+        initial: Number($("initial").value),
+        monthly: Number($("monthly").value),
+        years: Number($("years").value),
+        rate: Number($("rate").value),
+        inflation: Number($("inflation").value),
+        fees: Number($("fees").value),
+        scenarioRange: Number($("scenarioRange").value)
+      };
+    }
+
+    function validate(data) {
+      const moneyFields = [
+        ["Initial investment", data.initial],
+        ["Monthly contribution", data.monthly]
+      ];
+
+      for (const [name, value] of moneyFields) {
+        if (!Number.isFinite(value) || value < 0 || value > 1e12) {
+          throw new Error(name + " must be between 0 and 1 trillion.");
+        }
+      }
+
+      if (!Number.isInteger(data.years) ||
+          data.years < 1 || data.years > 40) {
+        throw new Error("Choose a duration from 1 to 40 years.");
+      }
+
+      if (!Number.isFinite(data.rate) ||
+          data.rate < -30 || data.rate > 30) {
+        throw new Error("Annual return must be between -30% and 30%.");
+      }
+
+      if (!Number.isFinite(data.inflation) ||
+          data.inflation < 0 || data.inflation > 100) {
+        throw new Error("Inflation must be between 0% and 100%.");
+      }
+
+      if (!Number.isFinite(data.fees) ||
+          data.fees < 0 || data.fees > 20) {
+        throw new Error("Fees must be between 0% and 20%.");
+      }
+
+      if (!Number.isFinite(data.scenarioRange) ||
+          data.scenarioRange < 0 || data.scenarioRange > 60) {
+        throw new Error("Scenario difference must be between 0 and 60.");
+      }
+    }
+
+    // =========================================
+    // 3. PROJECTION ENGINE
+    // =========================================
+
+    function project(data, annualReturn) {
+      // Fees are a simplified annual percentage-point deduction.
+      // If fees exceed the assumed return, the net rate can be negative.
+      const netAnnualRate = annualReturn - data.fees;
+
+      // Effective monthly rate: twelve periods reproduce the
+      // net effective annual rate.
+      const monthlyRate =
+        Math.pow(1 + netAnnualRate / 100, 1 / 12) - 1;
+
+      let balance = data.initial;
+      let contributions = data.initial;
+
+      const rows = [{
+        year: 0,
+        invested: contributions,
+        value: balance,
+        profit: 0,
+        roi: 0
+      }];
+
+      for (let month = 1; month <= data.years * 12; month++) {
+        // Grow the existing balance, then contribute at month-end.
+        balance *= (1 + monthlyRate);
+        balance += data.monthly;
+        contributions += data.monthly;
+
+        if (month % 12 === 0) {
+          const profit = balance - contributions;
+
+          rows.push({
+            year: month / 12,
+            invested: contributions,
+            value: balance,
+            profit,
+            roi: contributions > 0
+              ? profit / contributions * 100
+              : 0
+          });
+        }
+      }
+
+      const profit = balance - contributions;
+
+      return {
+        finalValue: balance,
+        invested: contributions,
+        monthlyTotal: data.monthly * data.years * 12,
+        profit,
+        roi: contributions > 0 ? profit / contributions * 100 : 0,
+        rows
+      };
+    }
+
+    // =========================================
+    // 4. MAIN RESULT CARDS
+    // =========================================
+
+    function renderSummary(data, result) {
+      setValue("resultBadge", data.years + "-year scenario");
+      setValue("finalValue", formatMoney(result.finalValue, data.currency));
+      setValue("investedValue", formatMoney(result.invested, data.currency));
+      setValue("profitValue", formatMoney(result.profit, data.currency));
+      setValue("roiValue", formatPercent(result.roi));
+
+      setSignedStyle($("profitValue"), result.profit);
+      setSignedStyle($("roiValue"), result.roi);
+
+      setValue("breakdownInvested",
+        formatMoney(result.invested, data.currency));
+      setValue("breakdownProfit",
+        formatMoney(result.profit, data.currency));
+
+      // The two bars show the relative sizes of contributions
+      // and profit/loss against the final projected portfolio.
+      const denominator = Math.max(
+        Math.abs(result.invested) + Math.abs(result.profit), 1
+      );
+
+      $("investedBar").style.width =
+        (Math.abs(result.invested) / denominator * 100) + "%";
+
+      $("profitBar").style.width =
+        (Math.abs(result.profit) / denominator * 100) + "%";
+
+      $("profitBar").style.background =
+        result.profit >= 0 ? "#a3ffcb" : "#ff9eae";
+
+      const sign = result.profit >= 0 ? "gain" : "loss";
+      const profitDescription = formatMoney(
+        Math.abs(result.profit), data.currency
+      );
+
+      let explanation =
+        "You contribute " + formatMoney(result.invested, data.currency) +
+        " over the plan. Under these assumptions, your portfolio ends at " +
+        formatMoney(result.finalValue, data.currency) + ", a projected " +
+        sign + " of " + profitDescription + ".";
+
+      if (result.invested === 0) {
+        explanation =
+          "You have not planned any contributions. Enter an initial amount " +
+          "or monthly contribution to explore a funded investment scenario.";
+      }
+
+      setValue("explanation", explanation);
+
+      const realValue = result.finalValue /
+        Math.pow(1 + data.inflation / 100, data.years);
+
+      setValue("realValue", formatMoney(realValue, data.currency));
+    }
+
+    // =========================================
+    // 5. STARTING ONE YEAR LATER COMPARISON
+    // =========================================
+
+    function renderDelay(data, current) {
+      // Keep the same final calendar horizon: a plan started one
+      // year later has one fewer year to grow and contribute.
+      const shorter = {
+        ...data,
+        years: Math.max(0, data.years - 1)
+      };
+
+      let delayedValue;
+
+      if (shorter.years === 0) {
+        delayedValue = data.initial;
+      } else {
+        delayedValue = project(shorter, data.rate).finalValue;
+      }
+
+      setValue("delayValue", formatMoney(delayedValue, data.currency));
+
+      const difference = current.finalValue - delayedValue;
+
+      setValue("delayExplanation",
+        "Illustrative difference: " +
+        formatMoney(difference, data.currency) +
+        " between starting now and starting one year later. " +
+        "This comparison assumes the same return and monthly contribution " +
+        "amount, but excludes the contribution year that is missed.");
+    }
+
+    // =========================================
+    // 6. SCENARIO COMPARISON
+    // =========================================
+
+    function renderScenarios(data) {
+      const scenarios = [
+        {
+          rate: Math.max(-30, data.rate - data.scenarioRange),
+          valueId: "lowValue",
+          profitId: "lowProfit",
+          rateId: "lowRate"
+        },
+        {
+          rate: data.rate,
+          valueId: "baseValue",
+          profitId: "baseProfit",
+          rateId: "baseRate"
+        },
+        {
+          rate: Math.min(30, data.rate + data.scenarioRange),
+          valueId: "highValue",
+          profitId: "highProfit",
+          rateId: "highRate"
+        }
+      ];
+
+      scenarios.forEach((scenario) => {
+        const result = project(data, scenario.rate);
+
+        setValue(scenario.rateId,
+          formatPercent(scenario.rate) + " gross annual return");
+
+        setValue(scenario.valueId,
+          formatMoney(result.finalValue, data.currency));
+
+        setValue(scenario.profitId,
+          "Profit / loss: " + formatMoney(result.profit, data.currency));
+
+        setSignedStyle($(scenario.profitId), result.profit);
+      });
+    }
+
+    // =========================================
+    // 7. CHART
+    // =========================================
+
+    function renderChart(data, result) {
+      const labels = result.rows.map((row) =>
+        row.year === 0 ? "Today" : "Year " + row.year
+      );
+
+      const portfolio = result.rows.map((row) => row.value);
+      const contributions = result.rows.map((row) => row.invested);
+      const profit = result.rows.map((row) => row.profit);
+
+      const datasets = chartView === "profit"
+        ? [{
+            label: "Profit / loss",
+            data: profit,
+            borderColor: "#a3ffcb",
+            backgroundColor: "rgba(163,255,203,.12)",
+            borderWidth: 3,
+            fill: true,
+            tension: .28,
+            pointRadius: 0
+          }]
+        : [
+            {
+              label: "Portfolio value",
+              data: portfolio,
+              borderColor: "#a3ffcb",
+              backgroundColor: "rgba(163,255,203,.09)",
+              borderWidth: 3,
+              fill: true,
+              tension: .28,
+              pointRadius: 0
+            },
+            {
+              label: "Contributions",
+              data: contributions,
+              borderColor: "#6da9ff",
+              backgroundColor: "transparent",
+              borderWidth: 2,
+              borderDash: [5, 5],
+              fill: false,
+              tension: .15,
+              pointRadius: 0
+            }
+          ];
+
+      if (chart) chart.destroy();
+
+      chart = new Chart($("growthChart"), {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            intersect: false,
+            mode: "index"
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) =>
+                  context.dataset.label + ": " +
+                  formatMoney(context.parsed.y, data.currency)
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: "#202a36" },
+              ticks: {
+                color: "#8797a9",
+                maxTicksLimit: 7
+              }
+            },
+            y: {
+              grid: { color: "#202a36" },
+              ticks: {
+                color: "#8797a9",
+                callback: (value) =>
+                  new Intl.NumberFormat("en-IN", {
+                    notation: "compact",
+                    maximumFractionDigits: 1
+                  }).format(value)
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // =========================================
+    // 8. YEARLY BREAKDOWN
+    // =========================================
+
+    function renderTable(data, result) {
+      const body = $("yearlyRows");
+      body.replaceChildren();
+
+      result.rows.forEach((row) => {
+        if (row.year === 0) return;
+
+        const tr = document.createElement("tr");
+
+        const values = [
+          "Year " + row.year,
+          formatMoney(row.invested, data.currency),
+          formatMoney(row.value, data.currency),
+          formatMoney(row.profit, data.currency),
+          formatPercent(row.roi)
+        ];
+
+        values.forEach((value, index) => {
+          const td = document.createElement("td");
+          td.textContent = value;
+
+          if (index === 3) {
+            td.classList.add(row.profit >= 0 ? "positive" : "negative");
+          }
+
+          tr.appendChild(td);
+        });
+
+        body.appendChild(tr);
+      });
+    }
+
+    // =========================================
+    // 9. CSV EXPORT
+    // =========================================
+
+    function exportCSV() {
+      if (!latest) return;
+
+      const { data, result } = latest;
+
+      const rows = [
+        ["Year", "Contributions", "Projected Value", "Profit/Loss", "Return %"]
+      ];
+
+      result.rows.forEach((row) => {
+        rows.push([
+          row.year,
+          row.invested.toFixed(2),
+          row.value.toFixed(2),
+          row.profit.toFixed(2),
+          row.roi.toFixed(2)
+        ]);
+      });
+
+      const csv = rows.map((row) =>
+        row.map((cell) =>
+          '"' + String(cell).replace(/"/g, '""') + '"'
+        ).join(",")
+      ).join("\r\n");
+
+      const blob = new Blob(["\uFEFF" + csv], {
+        type: "text/csv;charset=utf-8;"
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "stockscope-projection.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // Delay revocation to avoid interrupting downloads in some browsers.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // =========================================
+    // 10. MAIN APP UPDATE
+    // =========================================
+
+    function run() {
+      try {
+        const data = readInputs();
+        validate(data);
+
+        $("error").classList.add("hidden");
+        $("error").textContent = "";
+
+        $("yearsValue").textContent = data.years + " years";
+        $("rateValue").textContent = formatPercent(data.rate);
+
+        $("initialSymbol").textContent = currencySymbols[data.currency];
+        $("monthlySymbol").textContent = currencySymbols[data.currency];
+
+        const result = project(data, data.rate);
+        latest = { data, result };
+
+        renderSummary(data, result);
+        renderDelay(data, result);
+        renderScenarios(data);
+        renderChart(data, result);
+        renderTable(data, result);
+
+      } catch (error) {
+        $("error").textContent = error.message;
+        $("error").classList.remove("hidden");
+      }
+    }
+
+    // =========================================
+    // 11. INTERACTIONS
+    // =========================================
+
+    $("planForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      run();
+    });
+
+    // Live recalculation while changing assumptions.
+    $("planForm").querySelectorAll("input, select").forEach((input) => {
+      input.addEventListener("input", run);
+      input.addEventListener("change", run);
+    });
+
+    // Advanced assumptions panel.
+    $("advancedToggle").addEventListener("click", () => {
+      const panel = $("advancedPanel");
+      const opening = panel.classList.contains("hidden-panel");
+
+      panel.classList.toggle("hidden-panel");
+      $("advancedArrow").textContent = opening ? "−" : "＋";
+    });
+
+    // Switch between total portfolio and profit-only views.
+    document.querySelectorAll("[data-view]").forEach((button) => {
+      button.addEventListener("click", () => {
+        chartView = button.dataset.view;
+
+        document.querySelectorAll("[data-view]").forEach((tab) => {
+          tab.classList.toggle("active", tab === button);
+        });
+
+        run();
+      });
+    });
+
+    // Reset all fields to defaults.
+    $("resetButton").addEventListener("click", () => {
+      Object.entries(defaults).forEach(([key, value]) => {
+        $(key).value = value;
+      });
+
+      run();
+    });
+
+    $("exportButton").addEventListener("click", exportCSV);
+
+    // Initial page render.
+    run();
+  </script>
+</body>
+</html>
